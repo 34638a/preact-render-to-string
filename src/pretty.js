@@ -90,6 +90,10 @@ function _renderToStringPretty(
 		return '';
 	}
 
+	// Custom interceptors for Handlebars Structures.
+	if (vnode?.constructor?.name?.match(/Handlebars.*Builder/)) return vnode.toString();
+	if ("object" === typeof vnode && vnode?.__handlebars) return `{{${vnode.toString()}}}`;
+
 	// #text nodes
 	if (typeof vnode !== 'object') {
 		if (typeof vnode === 'function') return '';
@@ -254,8 +258,20 @@ function _renderToStringPretty(
 		if (opts && opts.sortAttributes === true) attrs.sort();
 
 		for (let i = 0; i < attrs.length; i++) {
-			let name = attrs[i],
-				v = props[name];
+			let name = attrs[i], v = props[name];
+
+			/**
+			 * Custom prop handler to serialise Handlebars without HTML encoding text data.
+			 */
+			if (name === "$$") {
+				// const isObject = (myVar) => myVar !== null && typeof myVar === 'object' && !Array.isArray(myVar);
+				const processHandlebarsAttribute = (value) => {
+					return (value || {})?.__handlebars ? `{{${value}}}` : value
+				}
+				s += " " + [v].flat().map((e)=>processHandlebarsAttribute(e)).join(" ");
+				continue;
+			}
+
 			if (name === 'children') {
 				propChildren = v;
 				continue;
