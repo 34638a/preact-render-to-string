@@ -260,6 +260,17 @@ function _renderToString(
 	}
 
 	let vnodeType = typeof vnode;
+
+	// Custom interceptors for Handlebars Structures.
+	// console.log(vnode);
+	if ("object" === vnodeType && vnode?.__handlebars) {
+		if (vnode?.__path) {
+			return `{{${vnode.toString()}}}`;
+		}
+		return vnode.toString();
+	}
+	// if (vnode?.constructor?.name?.match?.(/Handlebars.*Builder/)) return vnode.toString();
+
 	// Text VNodes: escape as HTML
 	if (vnodeType != 'object') {
 		if (vnodeType == 'function') return EMPTY_STR;
@@ -579,14 +590,29 @@ function _renderToString(
 		children;
 
 	for (let name in props) {
+		/**
+		 * Process a Handlebars Attribute.
+		 * @param v
+		 * @returns {string|*}
+		 */
+		const processHandlebarsAttribute = (v) => {
+			return (v || {})?.__handlebars ? `{{${v}}}` : v
+		}
+
 		let v = props[name];
-		v = isSignal(v) ? v.value : v;
+		v = processHandlebarsAttribute(isSignal(v) ? v.value : v);
 
 		if (typeof v == 'function' && name !== 'class' && name !== 'className') {
 			continue;
 		}
 
 		switch (name) {
+			case '$$':
+				// const isObject = (myVar) => myVar !== null && typeof myVar === 'object' && !Array.isArray(myVar);
+
+				s += " " + [v].flat().map((e)=>processHandlebarsAttribute(e)).join(" ");
+				continue;
+
 			case 'children':
 				children = v;
 				continue;

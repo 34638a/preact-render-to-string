@@ -91,8 +91,14 @@ function _renderToStringPretty(
 	}
 
 	// Custom interceptors for Handlebars Structures.
-	if (vnode?.constructor?.name?.match(/Handlebars.*Builder/)) return vnode.toString();
-	if ("object" === typeof vnode && vnode?.__handlebars) return `{{${vnode.toString()}}}`;
+	if ("object" === typeof vnode && vnode?.__handlebars) {
+		if (vnode?.__path) {
+			return `{{${vnode.toString()}}}`;
+		}
+		return vnode.toString();
+	}
+	// if (vnode?.constructor?.name?.match?.(/Handlebars.*Builder/)) return vnode.toString();
+	// if ("object" === typeof vnode && vnode?.__handlebars) return `{{${vnode.toString()}}}`;
 
 	// #text nodes
 	if (typeof vnode !== 'object') {
@@ -261,13 +267,22 @@ function _renderToStringPretty(
 			let name = attrs[i], v = props[name];
 
 			/**
+			 * Process a Handlebars Attribute.
+			 * @param v
+			 * @returns {string|*}
+			 */
+			const processHandlebarsAttribute = (value) => {
+				return (value || {})?.__handlebars ? `{{${value}}}` : value
+			}
+
+			v = processHandlebarsAttribute(v);
+
+			/**
 			 * Custom prop handler to serialise Handlebars without HTML encoding text data.
 			 */
 			if (name === "$$") {
 				// const isObject = (myVar) => myVar !== null && typeof myVar === 'object' && !Array.isArray(myVar);
-				const processHandlebarsAttribute = (value) => {
-					return (value || {})?.__handlebars ? `{{${value}}}` : value
-				}
+
 				s += " " + [v].flat().map((e)=>processHandlebarsAttribute(e)).join(" ");
 				continue;
 			}
