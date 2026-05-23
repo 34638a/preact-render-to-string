@@ -25,6 +25,7 @@ import {
 	VNODE,
 	CATCH_ERROR
 } from './lib/constants.js';
+import {processHandlebarsAttribute} from "./handlebars";
 
 const EMPTY_OBJ = {};
 const EMPTY_ARR = [];
@@ -590,14 +591,6 @@ function _renderToString(
 		children;
 
 	for (let name in props) {
-		/**
-		 * Process a Handlebars Attribute.
-		 * @param v
-		 * @returns {string|*}
-		 */
-		const processHandlebarsAttribute = (v) => {
-			return (v || {})?.__handlebars ? ((v || {})?.getHeader) ? `${v}` : `{{${v}}}` : v
-		}
 
 		let v = props[name];
 		v = processHandlebarsAttribute(isSignal(v) ? v.value : v);
@@ -608,8 +601,6 @@ function _renderToString(
 
 		switch (name) {
 			case '$$':
-				// const isObject = (myVar) => myVar !== null && typeof myVar === 'object' && !Array.isArray(myVar);
-
 				s += " " + [v].flat().map((e)=>processHandlebarsAttribute(e)).join(" ");
 				continue;
 

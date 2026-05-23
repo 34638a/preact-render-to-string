@@ -26,6 +26,7 @@ import {
 	CHILDREN
 } from './lib/constants.js';
 import { options, Fragment, h } from 'preact';
+import {processHandlebarsAttribute} from "./handlebars";
 
 // components without names, kept as a hash for later comparison to return consistent UnnamedComponentXX names.
 const UNNAMED = [];
@@ -266,23 +267,12 @@ function _renderToStringPretty(
 		for (let i = 0; i < attrs.length; i++) {
 			let name = attrs[i], v = props[name];
 
-			/**
-			 * Process a Handlebars Attribute.
-			 * @param v
-			 * @returns {string|*}
-			 */
-			const processHandlebarsAttribute = (v) => {
-				return (v || {})?.__handlebars ? ((v || {})?.getHeader) ? `${v}` : `{{${v}}}` : v
-			}
-
 			v = processHandlebarsAttribute(v);
 
 			/**
 			 * Custom prop handler to serialise Handlebars without HTML encoding text data.
 			 */
 			if (name === "$$") {
-				// const isObject = (myVar) => myVar !== null && typeof myVar === 'object' && !Array.isArray(myVar);
-
 				s += " " + [v].flat().map((e)=>processHandlebarsAttribute(e)).join(" ");
 				continue;
 			}
