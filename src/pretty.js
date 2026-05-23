@@ -28,6 +28,15 @@ import {
 import { options, Fragment, h } from 'preact';
 import {processHandlebarsAttribute} from "./handlebars";
 
+function isSignal(x) {
+	return (
+		x !== null &&
+		typeof x === 'object' &&
+		typeof x.peek === 'function' &&
+		'value' in x
+	);
+}
+
 // components without names, kept as a hash for later comparison to return consistent UnnamedComponentXX names.
 const UNNAMED = [];
 
@@ -267,13 +276,16 @@ function _renderToStringPretty(
 		for (let i = 0; i < attrs.length; i++) {
 			let name = attrs[i], v = props[name];
 
-			v = processHandlebarsAttribute(v);
+			let result = processHandlebarsAttribute(isSignal(v) ? v.value : v);
+			v = result[0];
+			let isHandlebars = result[1];
+			// v = processHandlebarsAttribute(v);
 
 			/**
 			 * Custom prop handler to serialise Handlebars without HTML encoding text data.
 			 */
 			if (name === "$$") {
-				s += " " + [v].flat().map((e)=>processHandlebarsAttribute(e)).join(" ");
+				s += " " + [v].flat().map((e)=>processHandlebarsAttribute(e)[0]).join(" ");
 				continue;
 			}
 
@@ -376,7 +388,7 @@ function _renderToStringPretty(
 						s = s + ` selected`;
 					}
 				}
-				s = s + ` ${name}="${encodeEntities(v + '')}"`;
+				s = s + ` ${name}="${isHandlebars ? v : encodeEntities(v + '')}"`;
 			}
 		}
 	}

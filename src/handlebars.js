@@ -9,13 +9,24 @@ export const processHandlebarsAttribute = (v) => {
 
 	const possibleHandlebars = (v || {});
 	if (possibleHandlebars?.__handlebars) { // is handlebars
+		// console.log(possibleHandlebars);
 		if (possibleHandlebars?.__expression) {
-			return v.toString();
+			// console.log("is expression");
+			return [v.toString(), true];
 		} else if (possibleHandlebars?.__block) {
-			return v.toString();
+			// console.log("is block");
+			return [v.toString(), true];
 		}
-		return `{{${v}}}`
+		// console.log("is variable");
+		return [`{{${v}}}`, true]
 	}
-	return v;
+	return [v, false];
 }
 
+/**
+ * Take a vNode from the tree and if it is handlebars render it.
+ * @param vNode
+ */
+// export const processHandlebarsVNode = (vNode) => {
+// 	return
+// }

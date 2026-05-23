@@ -593,7 +593,9 @@ function _renderToString(
 	for (let name in props) {
 
 		let v = props[name];
-		v = processHandlebarsAttribute(isSignal(v) ? v.value : v);
+		let result = processHandlebarsAttribute(isSignal(v) ? v.value : v);
+		v = result[0];
+		let isHandlebars = result[1];
 
 		if (typeof v == 'function' && name !== 'class' && name !== 'className') {
 			continue;
@@ -601,7 +603,7 @@ function _renderToString(
 
 		switch (name) {
 			case '$$':
-				s += " " + [v].flat().map((e)=>processHandlebarsAttribute(e)).join(" ");
+				s += " " + [v].flat().map((e)=>processHandlebarsAttribute(e)[0]).join(" ");
 				continue;
 
 			case 'children':
@@ -708,7 +710,7 @@ function _renderToString(
 					' ' +
 					name +
 					'="' +
-					(typeof v == 'string' ? encodeEntities(v) : v + EMPTY_STR) +
+					(typeof v == 'string' ? (isHandlebars ? v : encodeEntities(v)) : v + EMPTY_STR) +
 					'"';
 			}
 		}
