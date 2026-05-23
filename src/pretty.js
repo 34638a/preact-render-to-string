@@ -271,8 +271,8 @@ function _renderToStringPretty(
 			 * @param v
 			 * @returns {string|*}
 			 */
-			const processHandlebarsAttribute = (value) => {
-				return (value || {})?.__handlebars ? `{{${value}}}` : value
+			const processHandlebarsAttribute = (v) => {
+				return (v || {})?.__handlebars ? ((v || {})?.getHeader) ? `${v}` : `{{${v}}}` : v
 			}
 
 			v = processHandlebarsAttribute(v);

@@ -596,7 +596,7 @@ function _renderToString(
 		 * @returns {string|*}
 		 */
 		const processHandlebarsAttribute = (v) => {
-			return (v || {})?.__handlebars ? `{{${v}}}` : v
+			return (v || {})?.__handlebars ? ((v || {})?.getHeader) ? `${v}` : `{{${v}}}` : v
 		}
 
 		let v = props[name];
