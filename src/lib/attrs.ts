@@ -5,29 +5,15 @@ import {
 	HTML_LOWER_CASE,
 	HTML_ENUMERATED
 } from './html.js';
-import { processHandlebarsAttribute } from '../handlebars.js';
+import { runAttrProcessor } from './pipeline.js';
 import { isSignal } from './signals.js';
 
 /**
- * Unwrap a Preact signal (if present) then run Handlebars processing.
+ * Unwrap a Preact signal (if present) then run registered attr processors.
  * Both renderers do this identically on every prop value.
  */
 export function processAttrValue(v: any): [value: any, isHandlebars: boolean] {
-	return processHandlebarsAttribute(isSignal(v) ? v.value : v);
-}
-
-/**
- * Serialize a `$$` raw-attribute injection value into a string fragment
- * ready to append to the opening tag.
- */
-export function serializeRawAttrs(v: any): string {
-	return (
-		' ' +
-		[v]
-			.flat()
-			.map((e: any) => processHandlebarsAttribute(e)[0])
-			.join(' ')
-	);
+	return runAttrProcessor(isSignal(v) ? v.value : v);
 }
 
 /**

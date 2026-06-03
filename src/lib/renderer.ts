@@ -8,11 +8,11 @@ import {
 } from './component.js';
 import {
 	processAttrValue,
-	serializeRawAttrs,
 	resolveAttrName,
 	isEnumeratedAttr
 } from './attrs.js';
-import { serializeHandlebarsVNode, serializePrimitiveVNode } from '../handlebars.js';
+import { serializePrimitiveVNode } from '../handlebars.js';
+import { runVNodeProcessors, runRawPropProcessor } from './pipeline.js';
 import { options, Fragment } from 'preact';
 import { beginRenderPass, endRenderPass } from './render-setup.js';
 import {
@@ -197,7 +197,7 @@ export function _renderToString(
 	}
 
 	if ('object' === typeof vnode) {
-		const hbs = serializeHandlebarsVNode(vnode);
+		const hbs = runVNodeProcessors(vnode);
 		if (hbs !== null) return hbs;
 	}
 
@@ -508,10 +508,12 @@ export function _renderToString(
 			continue;
 		}
 
+		{
+			const raw = runRawPropProcessor(name, v);
+			if (raw !== null) { s += raw; continue; }
+		}
+
 		switch (name) {
-			case '$$':
-				s += serializeRawAttrs(v);
-				continue;
 
 			case 'children':
 				children = v;

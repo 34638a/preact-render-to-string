@@ -1,11 +1,11 @@
 import { encodeEntities, UNSAFE_NAME, VOID_ELEMENTS } from './lib/html.js';
 import {
 	processAttrValue,
-	serializeRawAttrs,
 	resolveAttrName,
 	isEnumeratedAttr
 } from './lib/attrs.js';
-import { serializeHandlebarsVNode, serializePrimitiveVNode } from './handlebars.js';
+import { serializePrimitiveVNode } from './handlebars.js';
+import { runVNodeProcessors, runRawPropProcessor } from './lib/pipeline.js';
 import { styleObjToCss } from './lib/css.js';
 import {
 	createComponent,
@@ -91,7 +91,7 @@ function renderNodePretty(
 	}
 
 	if (typeof vnode === 'object') {
-		const hbs = serializeHandlebarsVNode(vnode);
+		const hbs = runVNodeProcessors(vnode);
 		if (hbs !== null) return hbs;
 	}
 
@@ -245,9 +245,9 @@ function renderNodePretty(
 			const [attrVal, isHandlebars] = processAttrValue(v);
 			v = attrVal;
 
-			if (name === '$$') {
-				s += serializeRawAttrs(v);
-				continue;
+			{
+				const raw = runRawPropProcessor(name, v);
+				if (raw !== null) { s += raw; continue; }
 			}
 
 			if (name === 'children') {

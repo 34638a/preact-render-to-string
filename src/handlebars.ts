@@ -1,10 +1,42 @@
 import { encodeEntities } from './lib/html.js';
+import {
+	registerVNodeProcessor,
+	registerAttrProcessor,
+	registerRawPropProcessor,
+	runAttrProcessor
+} from './lib/pipeline.js';
 
 export type HandlebarsAttributeResult = [value: any, isHandlebars: boolean];
+
+registerVNodeProcessor((vnode: any): string | null => {
+	if (typeof vnode !== 'object' || !vnode?.__handlebars) return null;
+	if (vnode.__path) return `{{${vnode.toString()}}}`;
+	return vnode.toString();
+});
+
+registerAttrProcessor((v: any): [any, boolean] | null => {
+	const possibleHandlebars = v || {};
+	if (!possibleHandlebars?.__handlebars) return null;
+	if (possibleHandlebars?.__expression) return [v.toString(), true];
+	if (possibleHandlebars?.__block) return [v.toString(), true];
+	return [`{{${v}}}`, true];
+});
+
+registerRawPropProcessor((name: string, value: any): string | null => {
+	if (name !== '$$') return null;
+	return (
+		' ' +
+		[value]
+			.flat()
+			.map((e: any) => runAttrProcessor(e)[0])
+			.join(' ')
+	);
+});
 
 /**
  * Serializes a Handlebars vnode to its template string.
  * Returns null if the vnode is not a Handlebars object.
+ * @deprecated Use runVNodeProcessors from pipeline instead.
  */
 export function serializeHandlebarsVNode(vnode: any): string | null {
 	if (typeof vnode !== 'object' || !vnode?.__handlebars) return null;
