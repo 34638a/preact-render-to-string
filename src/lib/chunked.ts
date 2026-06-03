@@ -1,6 +1,6 @@
 import { renderToString } from '../index.js';
 import { CHILD_DID_SUSPEND, COMPONENT, PARENT } from './constants.js';
-import { Deferred } from './util.js';
+import { Deferred } from './async.js';
 import { createInitScript, createSubtree } from './client.js';
 import type { RendererState, RenderToChunksOptions } from '../internal.js';
 

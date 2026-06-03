@@ -1,16 +1,20 @@
 import {
 	encodeEntities,
-	styleObjToCss,
 	UNSAFE_NAME,
 	NAMESPACE_REPLACE_REGEX,
 	HTML_LOWER_CASE,
 	HTML_ENUMERATED,
 	SVG_CAMEL_CASE,
+	SELF_CLOSING
+} from './lib/html.js';
+import { styleObjToCss } from './lib/css.js';
+import {
 	createComponent,
 	setDirty,
 	unsetDirty,
 	isDirty
-} from './lib/util.js';
+} from './lib/component.js';
+import { isSignal } from './lib/signals.js';
 import { options, h, Fragment } from 'preact';
 import {
 	CHILDREN,
@@ -458,21 +462,26 @@ function _renderToString(
 		} catch (error: any) {
 			if (!asyncMode && renderer && renderer.onError) {
 				const onError = (error: any): any => {
-					return renderer.onError!.call(renderer, error, vnode, (child: any, parent: any) => {
-						try {
-							return _renderToString(
-								child,
-								context,
-								isSvgMode,
-								selectValue,
-								parent,
-								asyncMode,
-								renderer
-							) as string;
-						} catch (e) {
-							return onError(e);
+					return renderer.onError!.call(
+						renderer,
+						error,
+						vnode,
+						(child: any, parent: any) => {
+							try {
+								return _renderToString(
+									child,
+									context,
+									isSvgMode,
+									selectValue,
+									parent,
+									asyncMode,
+									renderer
+								) as string;
+							} catch (e) {
+								return onError(e);
+							}
 						}
-					});
+					);
 				};
 				let res = onError(error);
 
@@ -498,7 +507,9 @@ function _renderToString(
 						asyncMode,
 						renderer
 					);
-					return vnode._suspended ? wrapWithSuspenseMarkers(result as any) : result;
+					return vnode._suspended
+						? wrapWithSuspenseMarkers(result as any)
+						: result;
 				} catch (e: any) {
 					if (!e || typeof e.then != 'function') throw e;
 
@@ -568,11 +579,9 @@ function _renderToString(
 					case 'textarea':
 						children = v;
 						continue;
-
 					case 'select':
 						selectValue = v;
 						continue;
-
 					case 'option':
 						if (selectValue == v && !('selected' in props)) {
 							s = s + ' selected';
@@ -676,34 +685,6 @@ function _renderToString(
 	return startTag + html + endTag;
 }
 
-const SELF_CLOSING = new Set([
-	'area',
-	'base',
-	'br',
-	'col',
-	'command',
-	'embed',
-	'hr',
-	'img',
-	'input',
-	'keygen',
-	'link',
-	'meta',
-	'param',
-	'source',
-	'track',
-	'wbr'
-]);
-
 export default renderToString;
 export const render = renderToString;
 export const renderToStaticMarkup = renderToString;
-
-function isSignal(x: unknown): boolean {
-	return (
-		x !== null &&
-		typeof x === 'object' &&
-		typeof (x as any).peek === 'function' &&
-		'value' in (x as object)
-	);
-}

@@ -1,21 +1,29 @@
 import {
 	encodeEntities,
-	indent,
-	isLargeString,
-	styleObjToCss,
-	getChildren,
-	createComponent,
 	UNSAFE_NAME,
 	VOID_ELEMENTS,
 	NAMESPACE_REPLACE_REGEX,
 	SVG_CAMEL_CASE,
 	HTML_ENUMERATED,
-	HTML_LOWER_CASE,
+	HTML_LOWER_CASE
+} from './lib/html.js';
+import { styleObjToCss } from './lib/css.js';
+import {
+	createComponent,
 	getContext,
 	setDirty,
 	isDirty,
 	unsetDirty
-} from './lib/util.js';
+} from './lib/component.js';
+import {
+	indent,
+	isLargeString,
+	getChildren,
+	getComponentName
+} from './lib/format.js';
+import { isSignal } from './lib/signals.js';
+import { processHandlebarsAttribute } from './handlebars.js';
+import { options, Fragment, h } from 'preact';
 import {
 	COMMIT,
 	DIFF,
@@ -25,20 +33,7 @@ import {
 	PARENT,
 	CHILDREN
 } from './lib/constants.js';
-import { options, Fragment, h } from 'preact';
-import { processHandlebarsAttribute } from './handlebars.js';
 import type { VNode } from 'preact';
-
-function isSignal(x: unknown): boolean {
-	return (
-		x !== null &&
-		typeof x === 'object' &&
-		typeof (x as any).peek === 'function' &&
-		'value' in (x as object)
-	);
-}
-
-const UNNAMED: any[] = [];
 
 const EMPTY_ARR: any[] = [];
 const EMPTY_STR = '';
@@ -57,7 +52,16 @@ export interface PrettyRenderOptions {
 	renderRootComponent?: boolean;
 	shallowHighOrder?: boolean;
 	voidElements?: RegExp;
-	attributeHook?: ((name: string, value: any, context: any, opts: PrettyRenderOptions, isComponent: boolean) => string | false) | null | undefined;
+	attributeHook?:
+		| ((
+				name: string,
+				value: any,
+				context: any,
+				opts: PrettyRenderOptions,
+				isComponent: boolean
+		  ) => string | false)
+		| null
+		| undefined;
 }
 
 export default function renderToStringPretty(
@@ -261,7 +265,9 @@ function _renderToStringPretty(
 			let name = attrs[i],
 				v = props[name];
 
-			let result = processHandlebarsAttribute(isSignal(v) ? (v as any).value : v);
+			let result = processHandlebarsAttribute(
+				isSignal(v) ? (v as any).value : v
+			);
 			v = result[0];
 			let isHandlebars = result[1];
 
@@ -401,7 +407,9 @@ function _renderToStringPretty(
 	) {
 		const shouldPrettyFormatChildren =
 			pretty && !shouldPreserveWhitespace && typeof nodeName === 'string';
-		let hasLarge: boolean | number = shouldPrettyFormatChildren ? ~s.indexOf('\n') : 0;
+		let hasLarge: boolean | number = shouldPrettyFormatChildren
+			? ~s.indexOf('\n')
+			: 0;
 		let lastWasText = false;
 
 		for (let i = 0; i < children!.length; i++) {
@@ -446,7 +454,8 @@ function _renderToStringPretty(
 		}
 		if (shouldPrettyFormatChildren && hasLarge) {
 			for (let i = pieces.length; i--; ) {
-				pieces[i] = '\n' + indentChar + indent(pieces[i], indentChar as string);
+				pieces[i] =
+					'\n' + indentChar + indent(pieces[i], indentChar as string);
 			}
 		}
 	}
@@ -467,31 +476,4 @@ function _renderToStringPretty(
 	}
 
 	return s;
-}
-
-function getComponentName(component: any): string {
-	return (
-		component.displayName ||
-		(component !== Function && component.name) ||
-		getFallbackComponentName(component)
-	);
-}
-
-function getFallbackComponentName(component: any): string {
-	let str = Function.prototype.toString.call(component),
-		name = (str.match(/^\s*function\s+([^( ]+)/) || '')[1];
-	if (!name) {
-		let index = -1;
-		for (let i = UNNAMED.length; i--; ) {
-			if (UNNAMED[i] === component) {
-				index = i;
-				break;
-			}
-		}
-		if (index < 0) {
-			index = UNNAMED.push(component) - 1;
-		}
-		name = `UnnamedComponent${index}`;
-	}
-	return name;
 }

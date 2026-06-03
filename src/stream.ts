@@ -1,4 +1,4 @@
-import { Deferred } from './lib/util.js';
+import { Deferred } from './lib/async.js';
 import { renderToChunks } from './lib/chunked.js';
 import type { VNode } from 'preact';
 

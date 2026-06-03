@@ -1,6 +1,7 @@
 import './lib/polyfills.js';
 import renderToString from './pretty.js';
-import { indent, encodeEntities } from './lib/util.js';
+import { encodeEntities } from './lib/html.js';
+import { indent } from './lib/format.js';
 import prettyFormat from 'pretty-format';
 import type { VNode } from 'preact';
 import type { PrettyRenderOptions } from './pretty.js';
@@ -28,14 +29,19 @@ function attributeHook(
 	name: string,
 	value: any,
 	context: any,
-	opts: PrettyRenderOptions & { functions?: boolean; functionNames?: boolean; skipFalseAttributes?: boolean },
+	opts: PrettyRenderOptions & {
+		functions?: boolean;
+		functionNames?: boolean;
+		skipFalseAttributes?: boolean;
+	},
 	isComponent: boolean
 ): string | false {
 	let type = typeof value;
 
 	if (name === 'dangerouslySetInnerHTML') return false;
 
-	if (value == null || (type === 'function' && !(opts as any).functions)) return '';
+	if (value == null || (type === 'function' && !(opts as any).functions))
+		return '';
 
 	if (
 		(opts as any).skipFalseAttributes &&
@@ -45,8 +51,7 @@ function attributeHook(
 	)
 		return '';
 
-	let indentChar =
-		typeof opts.pretty === 'string' ? opts.pretty : '\t';
+	let indentChar = typeof opts.pretty === 'string' ? opts.pretty : '\t';
 	if (type !== 'string') {
 		if (type === 'function' && !(opts as any).functionNames) {
 			value = 'Function';
