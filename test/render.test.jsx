@@ -19,7 +19,7 @@ import {
 } from 'preact/hooks';
 import { expect, vi, describe, it } from 'vitest';
 import { svgAttributes, htmlAttributes } from './utils.jsx';
-import { COMPONENT_DIRTY_BIT } from '../src/lib/util.js';
+import { COMPONENT_DIRTY_BIT } from '../src/lib/component.js';
 
 function shallowRender(vnode) {
 	const context = {};

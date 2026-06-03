@@ -4,7 +4,7 @@ import { expect, describe, it } from 'vitest';
 import { Suspense } from 'preact/compat';
 import { createSubtree, createInitScript } from '../../src/lib/client';
 import { renderToPipeableStream } from '../../src/stream-node';
-import { Deferred } from '../../src/lib/util';
+import { Deferred } from '../../src/lib/async';
 import { createSuspender } from '../utils';
 
 function streamToString(stream) {

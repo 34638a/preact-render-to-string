@@ -4,7 +4,7 @@ import { expect, beforeAll, describe, it } from 'vitest';
 import { Suspense } from 'preact/compat';
 import { createSubtree, createInitScript } from '../../src/lib/client';
 import { renderToReadableStream } from '../../src/stream';
-import { Deferred } from '../../src/lib/util';
+import { Deferred } from '../../src/lib/async';
 import { createSuspender } from '../utils';
 
 /**

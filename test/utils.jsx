@@ -1,5 +1,5 @@
 import { h } from 'preact';
-import { Deferred } from '../src/lib/util';
+import { Deferred } from '../src/lib/async';
 
 /**
  * tag to remove leading whitespace from tagged template
