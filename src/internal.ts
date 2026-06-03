@@ -1,4 +1,4 @@
-import { ComponentChildren, ComponentChild, VNode } from 'preact';
+import type { ComponentChildren, ComponentChild, VNode } from 'preact';
 
 export interface Suspended {
 	id: string;
