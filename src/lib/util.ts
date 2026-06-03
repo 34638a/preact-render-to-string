@@ -1,4 +1,5 @@
-import { DIRTY, BITS } from './constants';
+import { DIRTY, BITS } from './constants.js';
+import { VNode } from 'preact';
 
 export const VOID_ELEMENTS =
 	/^(?:area|base|br|col|embed|hr|img|input|link|meta|param|source|track|wbr)$/;
@@ -14,7 +15,8 @@ export const SVG_CAMEL_CASE =
 export const HTML_ENUMERATED = new Set(['draggable', 'spellcheck']);
 
 export const COMPONENT_DIRTY_BIT = 1 << 3;
-export function setDirty(component) {
+
+export function setDirty(component: any): void {
 	if (component[BITS] !== undefined) {
 		component[BITS] |= COMPONENT_DIRTY_BIT;
 	} else {
@@ -22,7 +24,7 @@ export function setDirty(component) {
 	}
 }
 
-export function unsetDirty(component) {
+export function unsetDirty(component: any): void {
 	if (component.__g !== undefined) {
 		component.__g &= ~COMPONENT_DIRTY_BIT;
 	} else {
@@ -30,18 +32,16 @@ export function unsetDirty(component) {
 	}
 }
 
-export function isDirty(component) {
+export function isDirty(component: any): boolean {
 	if (component.__g !== undefined) {
 		return (component.__g & COMPONENT_DIRTY_BIT) !== 0;
 	}
 	return component[DIRTY] === true;
 }
 
-// DOM properties that should NOT have "px" added when numeric
 const ENCODED_ENTITIES = /["&<]/;
 
-/** @param {string} str */
-export function encodeEntities(str) {
+export function encodeEntities(str: string): string {
 	// Skip all work for strings with no entities needing encoding:
 	if (str.length === 0 || ENCODED_ENTITIES.test(str) === false) return str;
 
@@ -65,25 +65,27 @@ export function encodeEntities(str) {
 			default:
 				continue;
 		}
-		// Append skipped/buffered characters and the encoded entity:
 		if (i !== last) out = out + str.slice(last, i);
 		out = out + ch;
-		// Start the next seek/buffer after the entity's offset:
 		last = i + 1;
 	}
 	if (i !== last) out = out + str.slice(last, i);
 	return out;
 }
 
-export let indent = (s, char) =>
+export let indent = (s: unknown, char?: string): string =>
 	String(s).replace(/(\n+)/g, '$1' + (char || '\t'));
 
-export let isLargeString = (s, length, ignoreLines) =>
+export let isLargeString = (
+	s: unknown,
+	length?: number,
+	ignoreLines?: boolean
+): boolean =>
 	String(s).length > (length || 40) ||
 	(!ignoreLines && String(s).indexOf('\n') !== -1) ||
 	String(s).indexOf('<') !== -1;
 
-const JS_TO_CSS = {};
+const JS_TO_CSS: Record<string, string> = {};
 
 const IS_NON_DIMENSIONAL = new Set([
 	'animation-iteration-count',
@@ -123,8 +125,8 @@ const IS_NON_DIMENSIONAL = new Set([
 ]);
 
 const CSS_REGEX = /[A-Z]/g;
-// Convert an Object style to a CSSText string
-export function styleObjToCss(s) {
+
+export function styleObjToCss(s: Record<string, unknown>): string | undefined {
 	let str = '';
 	for (let prop in s) {
 		let val = s[prop];
@@ -138,7 +140,6 @@ export function styleObjToCss(s) {
 			let suffix = ';';
 			if (
 				typeof val === 'number' &&
-				// Exclude custom-attributes
 				!name.startsWith('--') &&
 				!IS_NON_DIMENSIONAL.has(name)
 			) {
@@ -150,14 +151,7 @@ export function styleObjToCss(s) {
 	return str || undefined;
 }
 
-/**
- * Get flattened children from the children prop
- * @param {Array} accumulator
- * @param {any} children A `props.children` opaque object.
- * @returns {Array} accumulator
- * @private
- */
-export function getChildren(accumulator, children) {
+export function getChildren(accumulator: any[], children: any): any[] {
 	if (Array.isArray(children)) {
 		children.reduce(getChildren, accumulator);
 	} else if (children != null && children !== false) {
@@ -166,28 +160,24 @@ export function getChildren(accumulator, children) {
 	return accumulator;
 }
 
-function markAsDirty() {
+function markAsDirty(this: any): void {
 	this.__d = true;
 }
 
-export function createComponent(vnode, context) {
+export function createComponent(vnode: VNode<any>, context: any): any {
 	return {
 		__v: vnode,
 		context,
 		props: vnode.props,
-		// silently drop state updates
 		setState: markAsDirty,
 		forceUpdate: markAsDirty,
 		__d: true,
-		// hooks
 		// oxlint-disable-next-line no-new-array
 		__h: new Array(0)
 	};
 }
 
-// Necessary for createContext api. Setting this property will pass
-// the context value as `this.context` just for this component.
-export function getContext(nodeName, context) {
+export function getContext(nodeName: any, context: any): any {
 	let cxType = nodeName.contextType;
 	let provider = cxType && context[cxType.__c];
 	return cxType != null
@@ -197,13 +187,13 @@ export function getContext(nodeName, context) {
 		: context;
 }
 
-/**
- * @template T
- */
-export class Deferred {
+export class Deferred<T> {
+	promise: Promise<T>;
+	resolve!: (value: T | PromiseLike<T>) => void;
+	reject!: (reason?: any) => void;
+
 	constructor() {
-		/** @type {Promise<T>} */
-		this.promise = new Promise((resolve, reject) => {
+		this.promise = new Promise<T>((resolve, reject) => {
 			this.resolve = resolve;
 			this.reject = reject;
 		});

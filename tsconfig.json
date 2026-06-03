@@ -1,8 +1,9 @@
 {
     "compilerOptions": {
-        "module": "commonjs",
+        "module": "ESNext",
+        "moduleResolution": "bundler",
         "lib": [
-            "es6",
+            "es2022",
             "dom"
         ],
         "strict": true,
@@ -14,11 +15,12 @@
         ],
         "jsx": "react",
         "jsxFactory": "h",
-        "types": [],
+        "types": ["node"],
         "noEmit": true,
+        "allowImportingTsExtensions": true,
         "forceConsistentCasingInFileNames": true
     },
-    "files": [
-        "src/index.d.ts"
+    "include": [
+        "src/**/*.ts"
     ]
 }

@@ -1,26 +1,23 @@
 import { Deferred } from './lib/util.js';
 import { renderToChunks } from './lib/chunked.js';
+import type { VNode } from 'preact';
 
-/** @typedef {ReadableStream<Uint8Array> & { allReady: Promise<void>}} RenderStream */
+type RenderStream = ReadableStream<Uint8Array> & { allReady: Promise<void> };
 
-/**
- * @param {import('preact').VNode} vnode
- * @param {any} [context]
- * @returns {RenderStream}
- */
-export function renderToReadableStream(vnode, context) {
-	/** @type {Deferred<void>} */
-	const allReady = new Deferred();
-	const encoder = new TextEncoder('utf-8');
+export function renderToReadableStream(
+	vnode: VNode<any>,
+	context?: any
+): RenderStream {
+	const allReady = new Deferred<void>();
+	const encoder = new TextEncoder();
 
-	/** @type {RenderStream} */
-	const stream = new ReadableStream({
+	const stream = new ReadableStream<Uint8Array>({
 		start(controller) {
 			renderToChunks(vnode, {
 				context,
 				onError: (error) => {
 					allReady.reject(error);
-					controller.abort(error);
+					controller.error(error);
 				},
 				onWrite(s) {
 					controller.enqueue(encoder.encode(s));
@@ -35,7 +32,7 @@ export function renderToReadableStream(vnode, context) {
 					allReady.reject(error);
 				});
 		}
-	});
+	}) as RenderStream;
 
 	stream.allReady = allReady.promise;
 

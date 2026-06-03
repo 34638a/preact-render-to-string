@@ -1,25 +1,21 @@
 import { ComponentChildren, ComponentChild, VNode } from 'preact';
 
-interface Suspended {
+export interface Suspended {
 	id: string;
 	promise: Promise<any>;
-	context: any;
-	isSvgMode: boolean;
-	selectValue: any;
 	vnode: VNode;
-	parent: VNode | null;
 }
 
-interface RendererErrorHandler {
+export interface RendererErrorHandler {
 	(
 		this: RendererState,
 		error: any,
 		vnode: VNode<{ fallback: any }>,
-		renderChild: (child: ComponentChildren, parent: ComponentChild) => string
+		renderChild: (child: ComponentChildren, parent?: ComponentChild) => string
 	): string | undefined;
 }
 
-interface RendererState {
+export interface RendererState {
 	start: number;
 	suspended: Suspended[];
 	abortSignal?: AbortSignal | undefined;
@@ -27,7 +23,7 @@ interface RendererState {
 	onError?: RendererErrorHandler;
 }
 
-interface RenderToChunksOptions {
+export interface RenderToChunksOptions {
 	context?: any;
 	onError?: (error: any) => void;
 	onWrite: (str: string) => void;

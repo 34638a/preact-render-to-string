@@ -1,27 +1,25 @@
 import { PassThrough } from 'node:stream';
 import { renderToChunks } from './lib/chunked.js';
+import type { VNode } from 'preact';
+import type { Writable } from 'node:stream';
 
-/**
- * @typedef {object} RenderToPipeableStreamOptions
- * @property {() => void} [onShellReady]
- * @property {() => void} [onAllReady]
- * @property {(error) => void} [onError]
- */
+interface RenderToPipeableStreamOptions {
+	onShellReady?: () => void;
+	onAllReady?: () => void;
+	onError?: (error: any) => void;
+}
 
-/**
- * @typedef {object} PipeableStream
- * @property {() => void} abort
- * @property {(writable: import('stream').Writable) => void} pipe
- */
+interface PipeableStream {
+	abort: (reason?: unknown) => void;
+	pipe: (writable: Writable) => void;
+}
 
-/**
- * @param {import('preact').VNode} vnode
- * @param {RenderToPipeableStreamOptions} options
- * @param {any} [context]
- * @returns {PipeableStream}
- */
-export function renderToPipeableStream(vnode, options, context) {
-	const encoder = new TextEncoder('utf-8');
+export function renderToPipeableStream(
+	vnode: VNode<any>,
+	options: RenderToPipeableStreamOptions,
+	context?: any
+): PipeableStream {
+	const encoder = new TextEncoder();
 
 	const controller = new AbortController();
 	const stream = new PassThrough();
@@ -57,15 +55,11 @@ export function renderToPipeableStream(vnode, options, context) {
 	});
 
 	return {
-		/**
-		 * @param {unknown} [reason]
-		 */
 		abort(
-			reason = new Error(
+			reason: unknown = new Error(
 				'The render was aborted by the server without a reason.'
 			)
 		) {
-			// Remix/React-Router will always call abort after a timeout, even on success
 			if (stream.closed) return;
 
 			controller.abort();
@@ -74,10 +68,7 @@ export function renderToPipeableStream(vnode, options, context) {
 				options.onError(reason);
 			}
 		},
-		/**
-		 * @param {import("stream").Writable} writable
-		 */
-		pipe(writable) {
+		pipe(writable: Writable) {
 			stream.pipe(writable, { end: true });
 		}
 	};

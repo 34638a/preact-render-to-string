@@ -2,17 +2,15 @@ import { renderToString } from '../index.js';
 import { CHILD_DID_SUSPEND, COMPONENT, PARENT } from './constants.js';
 import { Deferred } from './util.js';
 import { createInitScript, createSubtree } from './client.js';
+import type { RendererState, RenderToChunksOptions } from '../internal.js';
 
-/**
- * @param {VNode} vnode
- * @param {RenderToChunksOptions} options
- * @returns {Promise<void>}
- */
-export async function renderToChunks(vnode, { context, onWrite, abortSignal }) {
+export async function renderToChunks(
+	vnode: any,
+	{ context, onWrite, abortSignal }: RenderToChunksOptions
+): Promise<void> {
 	context = context || {};
 
-	/** @type {RendererState} */
-	const renderer = {
+	const renderer: RendererState = {
 		start: Date.now(),
 		abortSignal,
 		onWrite,
@@ -20,17 +18,11 @@ export async function renderToChunks(vnode, { context, onWrite, abortSignal }) {
 		suspended: []
 	};
 
-	// Synchronously render the shell
 	// @ts-ignore - using third internal RendererState argument
 	const shell = renderToString(vnode, context, renderer);
 
-	// Wait for any suspended sub-trees if there are any
 	const len = renderer.suspended.length;
 	if (len > 0) {
-		// When rendering a full HTML document, the shell ends with </body></html>.
-		// Inserting the deferred <div hidden> wrapper after </html> is invalid HTML
-		// and causes browsers to reject the content. Instead, we inject the deferred
-		// content before the closing tags, then emit them last.
 		const docSuffixIndex = getDocumentClosingTagsIndex(shell);
 		const hasHtmlTag = shell.trimStart().startsWith('<html');
 		const initialWrite =
@@ -39,7 +31,6 @@ export async function renderToChunks(vnode, { context, onWrite, abortSignal }) {
 		onWrite(prefix + initialWrite);
 		onWrite('<div hidden>');
 		onWrite(createInitScript(len));
-		// We should keep checking all promises
 		await forkPromises(renderer);
 		onWrite('</div>');
 		if (docSuffixIndex !== -1) onWrite(shell.slice(docSuffixIndex));
@@ -48,17 +39,11 @@ export async function renderToChunks(vnode, { context, onWrite, abortSignal }) {
 	}
 }
 
-/**
- * If the shell ends with </body></html> (full document rendering), return that
- * suffix so it can be emitted *after* the deferred content, keeping the HTML valid.
- * @param {string} html
- * @returns {number}
- */
-function getDocumentClosingTagsIndex(html) {
+function getDocumentClosingTagsIndex(html: string): number {
 	return html.lastIndexOf('</body>');
 }
 
-async function forkPromises(renderer) {
+async function forkPromises(renderer: RendererState): Promise<void> {
 	if (renderer.suspended.length > 0) {
 		const suspensions = [...renderer.suspended];
 		await Promise.all(renderer.suspended.map((s) => s.promise));
@@ -69,11 +54,14 @@ async function forkPromises(renderer) {
 	}
 }
 
-/** @type {RendererErrorHandler} */
-function handleError(error, vnode, renderChild) {
+function handleError(
+	this: RendererState,
+	error: any,
+	vnode: any,
+	renderChild: (child: any, parent?: any) => string
+): string | undefined {
 	if (!error || !error.then) return;
 
-	// walk up to the Suspense boundary
 	while ((vnode = vnode[PARENT])) {
 		let component = vnode[COMPONENT];
 		if (component && component[CHILD_DID_SUSPEND]) {
@@ -84,14 +72,13 @@ function handleError(error, vnode, renderChild) {
 	if (!vnode) return;
 
 	const id = vnode.__v;
-	const found = this.suspended.find((x) => x.id === id);
-	const race = new Deferred();
+	const found = this.suspended.find((x: any) => x.id === id);
+	const race = new Deferred<void>();
 
 	const abortSignal = this.abortSignal;
 	if (abortSignal) {
-		// @ts-ignore 2554 - implicit undefined arg
 		if (abortSignal.aborted) race.resolve();
-		else abortSignal.addEventListener('abort', race.resolve);
+		else abortSignal.addEventListener('abort', () => race.resolve());
 	}
 
 	const promise = error.then(
@@ -100,8 +87,6 @@ function handleError(error, vnode, renderChild) {
 			const child = renderChild(vnode.props.children, vnode);
 			if (child) this.onWrite(createSubtree(id, child));
 		},
-		// TODO: Abort and send hydration code snippet to client
-		// to attempt to recover during hydration
 		this.onError
 	);
 

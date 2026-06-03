@@ -26,91 +26,89 @@ import {
 	CHILDREN
 } from './lib/constants.js';
 import { options, Fragment, h } from 'preact';
-import {processHandlebarsAttribute} from "./handlebars";
+import { processHandlebarsAttribute } from './handlebars.js';
+import type { VNode } from 'preact';
 
-function isSignal(x) {
+function isSignal(x: unknown): boolean {
 	return (
 		x !== null &&
 		typeof x === 'object' &&
-		typeof x.peek === 'function' &&
-		'value' in x
+		typeof (x as any).peek === 'function' &&
+		'value' in (x as object)
 	);
 }
 
-// components without names, kept as a hash for later comparison to return consistent UnnamedComponentXX names.
-const UNNAMED = [];
+const UNNAMED: any[] = [];
 
-const EMPTY_ARR = [];
+const EMPTY_ARR: any[] = [];
 const EMPTY_STR = '';
 const PRESERVE_WHITESPACE_TAGS = new Set(['pre', 'textarea']);
 
-/**
- * Render Preact JSX + Components to a pretty-printed HTML-like string.
- * @param {VNode} vnode	JSX Element / VNode to render
- * @param {Object} [context={}] Initial root context object
- * @param {Object} [opts={}] Rendering options
- * @param {Boolean} [opts.shallow=false] Serialize nested Components (`<Foo a="b" />`) instead of rendering
- * @param {Boolean} [opts.xml=false] Use self-closing tags for elements without children
- * @param {Boolean} [opts.pretty=false] Add whitespace for readability
- * @param {RegExp|undefined} [opts.voidElements] RegeEx to define which element types are self-closing
- * @param {boolean} [_inner]
- * @returns {String} a pretty-printed HTML-like string
- */
-export default function renderToStringPretty(vnode, context, opts, _inner) {
-	// Performance optimization: `renderToString` is synchronous and we
-	// therefore don't execute any effects. To do that we pass an empty
-	// array to `options._commit` (`__c`). But we can go one step further
-	// and avoid a lot of dirty checks and allocations by setting
-	// `options._skipEffects` (`__s`) too.
-	const previousSkipEffects = options[SKIP_EFFECTS];
-	options[SKIP_EFFECTS] = true;
+export interface PrettyRenderOptions {
+	pretty?: boolean | string;
+	shallow?: boolean;
+	xml?: boolean;
+	jsx?: boolean;
+	functions?: boolean;
+	functionNames?: boolean;
+	skipFalseAttributes?: boolean;
+	sortAttributes?: boolean;
+	allAttributes?: boolean;
+	renderRootComponent?: boolean;
+	shallowHighOrder?: boolean;
+	voidElements?: RegExp;
+	attributeHook?: ((name: string, value: any, context: any, opts: PrettyRenderOptions, isComponent: boolean) => string | false) | null | undefined;
+}
+
+export default function renderToStringPretty(
+	vnode: VNode<any>,
+	context?: any,
+	opts?: PrettyRenderOptions,
+	_inner?: boolean
+): string {
+	const previousSkipEffects = (options as any)[SKIP_EFFECTS];
+	(options as any)[SKIP_EFFECTS] = true;
 
 	const parent = h(Fragment, null);
-	parent[CHILDREN] = [vnode];
+	(parent as any)[CHILDREN] = [vnode];
 
 	try {
 		return _renderToStringPretty(
 			vnode,
 			context || {},
-			opts,
+			opts || {},
 			_inner,
 			false,
 			undefined,
 			parent
 		);
 	} finally {
-		// options._commit, we don't schedule any effects in this library right now,
-		// so we can pass an empty queue to this hook.
-		if (options[COMMIT]) options[COMMIT](vnode, EMPTY_ARR);
-		options[SKIP_EFFECTS] = previousSkipEffects;
+		if ((options as any)[COMMIT]) (options as any)[COMMIT](vnode, EMPTY_ARR);
+		(options as any)[SKIP_EFFECTS] = previousSkipEffects;
 		EMPTY_ARR.length = 0;
 	}
 }
 
 function _renderToStringPretty(
-	vnode,
-	context,
-	opts,
-	inner,
-	isSvgMode,
-	selectValue,
-	parent
-) {
+	vnode: any,
+	context: any,
+	opts: PrettyRenderOptions,
+	inner: boolean | undefined,
+	isSvgMode: boolean,
+	selectValue: any,
+	parent: any
+): string {
 	if (vnode == null || typeof vnode === 'boolean') {
 		return '';
 	}
 
-	// Custom interceptors for Handlebars Structures.
-	if ("object" === typeof vnode && vnode?.__handlebars) {
+	if ('object' === typeof vnode && vnode?.__handlebars) {
 		if (vnode?.__path) {
 			return `{{${vnode.toString()}}}`;
 		}
 		return vnode.toString();
 	}
-	// if (vnode?.constructor?.name?.match?.(/Handlebars.*Builder/)) return vnode.toString();
-	// if ("object" === typeof vnode && vnode?.__handlebars) return `{{${vnode.toString()}}}`;
 
-	// #text nodes
 	if (typeof vnode !== 'object') {
 		if (typeof vnode === 'function') return '';
 		return encodeEntities(vnode + '');
@@ -139,17 +137,15 @@ function _renderToStringPretty(
 		return rendered;
 	}
 
-	// VNodes have {constructor:undefined} to prevent JSON injection:
 	if (vnode.constructor !== undefined) return '';
 
 	vnode[PARENT] = parent;
-	if (options[DIFF]) options[DIFF](vnode);
+	if ((options as any)[DIFF]) (options as any)[DIFF](vnode);
 
 	let nodeName = vnode.type,
 		props = vnode.props,
 		isComponent = false;
 
-	// components
 	if (typeof nodeName === 'function') {
 		isComponent = true;
 		if (
@@ -159,7 +155,7 @@ function _renderToStringPretty(
 		) {
 			nodeName = getComponentName(nodeName);
 		} else if (nodeName === Fragment) {
-			const children = [];
+			const children: any[] = [];
 			getChildren(children, vnode.props.children);
 			return _renderToStringPretty(
 				children,
@@ -171,11 +167,11 @@ function _renderToStringPretty(
 				vnode
 			);
 		} else {
-			let rendered;
+			let rendered: any;
 
-			let c = (vnode.__c = createComponent(vnode, context));
+			let c: any = (vnode.__c = createComponent(vnode, context));
 
-			let renderHook = options[RENDER];
+			let renderHook = (options as any)[RENDER];
 
 			if (
 				!nodeName.prototype ||
@@ -183,27 +179,19 @@ function _renderToStringPretty(
 			) {
 				let cctx = getContext(nodeName, context);
 
-				// If a hook invokes setState() to invalidate the component during rendering,
-				// re-render it up to 25 times to allow "settling" of memoized states.
-				// Note:
-				//   This will need to be updated for Preact 11 to use internal.flags rather than component._dirty:
-				//   https://github.com/preactjs/preact/blob/d4ca6fdb19bc715e49fd144e69f7296b2f4daa40/src/diff/component.js#L35-L44
 				let count = 0;
 				while (isDirty(c) && count++ < 25) {
 					unsetDirty(c);
 
 					if (renderHook) renderHook(vnode);
 
-					// stateless functional components
 					rendered = nodeName.call(vnode.__c, props, cctx);
 				}
 			} else {
 				let cctx = getContext(nodeName, context);
 
-				// c = new nodeName(props, context);
 				c = vnode.__c = new nodeName(props, cctx);
 				c.__v = vnode;
-				// turn off stateful re-rendering:
 				setDirty(c);
 				c.props = props;
 				if (c.state == null) c.state = {};
@@ -222,8 +210,6 @@ function _renderToStringPretty(
 				else if (c.componentWillMount) {
 					c.componentWillMount();
 
-					// If the user called setState in cWM we need to flush pending,
-					// state updates. This is the same behaviour in React.
 					c.state =
 						c._nextState !== c.state
 							? c._nextState
@@ -251,16 +237,15 @@ function _renderToStringPretty(
 				vnode
 			);
 
-			if (options[DIFFED]) options[DIFFED](vnode);
+			if ((options as any)[DIFFED]) (options as any)[DIFFED](vnode);
 
 			return res;
 		}
 	}
 
-	// render JSX to HTML
 	let s = '<' + nodeName,
-		propChildren,
-		html;
+		propChildren: any,
+		html: string | undefined;
 
 	const shouldPreserveWhitespace =
 		pretty &&
@@ -270,22 +255,23 @@ function _renderToStringPretty(
 	if (props) {
 		let attrs = Object.keys(props);
 
-		// allow sorting lexicographically for more determinism (useful for tests, such as via preact-jsx-chai)
 		if (opts && opts.sortAttributes === true) attrs.sort();
 
 		for (let i = 0; i < attrs.length; i++) {
-			let name = attrs[i], v = props[name];
+			let name = attrs[i],
+				v = props[name];
 
-			let result = processHandlebarsAttribute(isSignal(v) ? v.value : v);
+			let result = processHandlebarsAttribute(isSignal(v) ? (v as any).value : v);
 			v = result[0];
 			let isHandlebars = result[1];
-			// v = processHandlebarsAttribute(v);
 
-			/**
-			 * Custom prop handler to serialise Handlebars without HTML encoding text data.
-			 */
-			if (name === "$$") {
-				s += " " + [v].flat().map((e)=>processHandlebarsAttribute(e)[0]).join(" ");
+			if (name === '$$') {
+				s +=
+					' ' +
+					[v]
+						.flat()
+						.map((e: any) => processHandlebarsAttribute(e)[0])
+						.join(' ');
 				continue;
 			}
 
@@ -345,9 +331,7 @@ function _renderToStringPretty(
 				v = styleObjToCss(v);
 			}
 
-			// always use string values instead of booleans for aria attributes
-			// also see https://github.com/preactjs/preact/pull/2347/files
-			if (name[0] === 'a' && name['1'] === 'r' && typeof v === 'boolean') {
+			if (name[0] === 'a' && name[1] === 'r' && typeof v === 'boolean') {
 				v = String(v);
 			}
 
@@ -362,12 +346,10 @@ function _renderToStringPretty(
 			if (name === 'dangerouslySetInnerHTML') {
 				html = v && v.__html;
 			} else if (nodeName === 'textarea' && name === 'value') {
-				// <textarea value="a&b"> --> <textarea>a&amp;b</textarea>
 				propChildren = v;
 			} else if ((v || v === 0 || v === '') && typeof v !== 'function') {
 				if (v === true || v === '') {
 					v = name;
-					// in non-xml mode, allow boolean attributes
 					if (!opts || !opts.xml) {
 						s = s + ' ' + name;
 						continue;
@@ -379,10 +361,8 @@ function _renderToStringPretty(
 						selectValue = v;
 						continue;
 					} else if (
-						// If we're looking at an <option> and it's the currently selected one
 						nodeName === 'option' &&
 						selectValue == v &&
-						// and the <option> doesn't already have a selected attribute on it
 						typeof props.selected === 'undefined'
 					) {
 						s = s + ` selected`;
@@ -393,7 +373,6 @@ function _renderToStringPretty(
 		}
 	}
 
-	// account for >1 multiline attribute
 	if (pretty) {
 		let sub = s.replace(/\n\s*/, ' ');
 		if (sub !== s && !~sub.indexOf('\n')) s = sub;
@@ -407,14 +386,13 @@ function _renderToStringPretty(
 
 	let isVoid =
 		VOID_ELEMENTS.test(nodeName) ||
-		(opts.voidElements && opts.voidElements.test(nodeName));
-	let pieces = [];
+		(opts.voidElements ? opts.voidElements.test(nodeName) : false);
+	let pieces: string[] = [];
 
-	let children;
+	let children: any[] | undefined;
 	if (html) {
-		// if multiline, indent.
 		if (pretty && !shouldPreserveWhitespace && isLargeString(html)) {
-			html = '\n' + indentChar + indent(html, indentChar);
+			html = '\n' + indentChar + indent(html, indentChar as string);
 		}
 		s = s + html;
 	} else if (
@@ -423,11 +401,11 @@ function _renderToStringPretty(
 	) {
 		const shouldPrettyFormatChildren =
 			pretty && !shouldPreserveWhitespace && typeof nodeName === 'string';
-		let hasLarge = shouldPrettyFormatChildren && ~s.indexOf('\n');
+		let hasLarge: boolean | number = shouldPrettyFormatChildren ? ~s.indexOf('\n') : 0;
 		let lastWasText = false;
 
-		for (let i = 0; i < children.length; i++) {
-			let child = children[i];
+		for (let i = 0; i < children!.length; i++) {
+			let child = children![i];
 
 			if (child != null && child !== false) {
 				let childSvgMode =
@@ -449,13 +427,10 @@ function _renderToStringPretty(
 				if (shouldPrettyFormatChildren && !hasLarge && isLargeString(ret))
 					hasLarge = true;
 
-				// Skip if we received an empty string
 				if (ret) {
 					if (shouldPrettyFormatChildren) {
 						let isText = ret.length > 0 && ret[0] != '<';
 
-						// We merge adjacent text nodes, otherwise each piece would be printed
-						// on a new line.
 						if (lastWasText && isText) {
 							pieces[pieces.length - 1] += ret;
 						} else {
@@ -471,12 +446,12 @@ function _renderToStringPretty(
 		}
 		if (shouldPrettyFormatChildren && hasLarge) {
 			for (let i = pieces.length; i--; ) {
-				pieces[i] = '\n' + indentChar + indent(pieces[i], indentChar);
+				pieces[i] = '\n' + indentChar + indent(pieces[i], indentChar as string);
 			}
 		}
 	}
 
-	if (options[DIFFED]) options[DIFFED](vnode);
+	if ((options as any)[DIFFED]) (options as any)[DIFFED](vnode);
 
 	if (pieces.length || html) {
 		s = s + pieces.join('');
@@ -494,7 +469,7 @@ function _renderToStringPretty(
 	return s;
 }
 
-function getComponentName(component) {
+function getComponentName(component: any): string {
 	return (
 		component.displayName ||
 		(component !== Function && component.name) ||
@@ -502,11 +477,10 @@ function getComponentName(component) {
 	);
 }
 
-function getFallbackComponentName(component) {
+function getFallbackComponentName(component: any): string {
 	let str = Function.prototype.toString.call(component),
 		name = (str.match(/^\s*function\s+([^( ]+)/) || '')[1];
 	if (!name) {
-		// search for an existing indexed name for the given component:
 		let index = -1;
 		for (let i = UNNAMED.length; i--; ) {
 			if (UNNAMED[i] === component) {
@@ -514,7 +488,6 @@ function getFallbackComponentName(component) {
 				break;
 			}
 		}
-		// not found, create a new indexed name:
 		if (index < 0) {
 			index = UNNAMED.push(component) - 1;
 		}
