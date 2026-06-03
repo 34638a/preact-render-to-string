@@ -12,17 +12,17 @@ import {
 	resolveAttrName,
 	isEnumeratedAttr
 } from './attrs.js';
-import { options, h, Fragment } from 'preact';
+import { serializeHandlebarsVNode, serializePrimitiveVNode } from '../handlebars.js';
+import { options, Fragment } from 'preact';
+import { beginRenderPass, endRenderPass } from './render-setup.js';
 import {
 	CHILDREN,
-	COMMIT,
 	COMPONENT,
 	DIFF,
 	DIFFED,
 	NEXT_STATE,
 	PARENT,
 	RENDER,
-	SKIP_EFFECTS,
 	VNODE,
 	CATCH_ERROR
 } from './constants.js';
@@ -30,7 +30,6 @@ import type { VNode } from 'preact';
 import type { RendererState } from '../internal.js';
 
 const EMPTY_OBJ: Record<string, never> = {};
-const EMPTY_ARR: any[] = [];
 const isArray = Array.isArray;
 const assign = Object.assign;
 const EMPTY_STR = '';
@@ -62,16 +61,12 @@ export function renderToString(
 	context?: any,
 	_rendererState?: RendererState
 ): string {
-	const previousSkipEffects = (options as any)[SKIP_EFFECTS];
-	(options as any)[SKIP_EFFECTS] = true;
+	const pass = beginRenderPass(vnode);
 
 	beforeDiff = (options as any)[DIFF];
 	afterDiff = (options as any)[DIFFED];
 	renderHook = (options as any)[RENDER];
 	ummountHook = (options as any).unmount;
-
-	const parent = h(Fragment, null);
-	(parent as any)[CHILDREN] = [vnode];
 
 	try {
 		const rendered = _renderToString(
@@ -79,7 +74,7 @@ export function renderToString(
 			context || EMPTY_OBJ,
 			false,
 			undefined,
-			parent,
+			pass.parent,
 			false,
 			_rendererState
 		);
@@ -94,9 +89,7 @@ export function renderToString(
 		}
 		throw e;
 	} finally {
-		if ((options as any)[COMMIT]) (options as any)[COMMIT](vnode, EMPTY_ARR);
-		(options as any)[SKIP_EFFECTS] = previousSkipEffects;
-		EMPTY_ARR.length = 0;
+		endRenderPass(vnode, pass);
 	}
 }
 
@@ -104,16 +97,12 @@ export async function renderToStringAsync(
 	vnode: VNode<any>,
 	context?: any
 ): Promise<string> {
-	const previousSkipEffects = (options as any)[SKIP_EFFECTS];
-	(options as any)[SKIP_EFFECTS] = true;
+	const pass = beginRenderPass(vnode);
 
 	beforeDiff = (options as any)[DIFF];
 	afterDiff = (options as any)[DIFFED];
 	renderHook = (options as any)[RENDER];
 	ummountHook = (options as any).unmount;
-
-	const parent = h(Fragment, null);
-	(parent as any)[CHILDREN] = [vnode];
 
 	try {
 		const rendered = await _renderToString(
@@ -121,7 +110,7 @@ export async function renderToStringAsync(
 			context || EMPTY_OBJ,
 			false,
 			undefined,
-			parent,
+			pass.parent,
 			true,
 			undefined
 		);
@@ -144,9 +133,7 @@ export async function renderToStringAsync(
 
 		return rendered as string;
 	} finally {
-		if ((options as any)[COMMIT]) (options as any)[COMMIT](vnode, EMPTY_ARR);
-		(options as any)[SKIP_EFFECTS] = previousSkipEffects;
-		EMPTY_ARR.length = 0;
+		endRenderPass(vnode, pass);
 	}
 }
 
@@ -204,27 +191,14 @@ export function _renderToString(
 	asyncMode: boolean,
 	renderer?: RendererState
 ): string | Promise<string> | (string | Promise<string>)[] {
-	if (
-		vnode == null ||
-		vnode === true ||
-		vnode === false ||
-		vnode === EMPTY_STR
-	) {
-		return EMPTY_STR;
+	{
+		const prim = serializePrimitiveVNode(vnode);
+		if (prim !== null) return prim;
 	}
 
-	let vnodeType = typeof vnode;
-
-	if ('object' === vnodeType && vnode?.__handlebars) {
-		if (vnode?.__path) {
-			return `{{${vnode.toString()}}}`;
-		}
-		return vnode.toString();
-	}
-
-	if (vnodeType != 'object') {
-		if (vnodeType == 'function') return EMPTY_STR;
-		return vnodeType == 'string' ? encodeEntities(vnode) : vnode + EMPTY_STR;
+	if ('object' === typeof vnode) {
+		const hbs = serializeHandlebarsVNode(vnode);
+		if (hbs !== null) return hbs;
 	}
 
 	if (isArray(vnode)) {

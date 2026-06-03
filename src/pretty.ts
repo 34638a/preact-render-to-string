@@ -5,6 +5,7 @@ import {
 	resolveAttrName,
 	isEnumeratedAttr
 } from './lib/attrs.js';
+import { serializeHandlebarsVNode, serializePrimitiveVNode } from './handlebars.js';
 import { styleObjToCss } from './lib/css.js';
 import {
 	createComponent,
@@ -19,19 +20,11 @@ import {
 	getChildren,
 	getComponentName
 } from './lib/format.js';
-import { options, Fragment, h } from 'preact';
-import {
-	COMMIT,
-	DIFF,
-	DIFFED,
-	RENDER,
-	SKIP_EFFECTS,
-	PARENT,
-	CHILDREN
-} from './lib/constants.js';
+import { options, Fragment } from 'preact';
+import { beginRenderPass, endRenderPass } from './lib/render-setup.js';
+import { DIFF, DIFFED, RENDER, PARENT, CHILDREN } from './lib/constants.js';
 import type { VNode } from 'preact';
 
-const EMPTY_ARR: any[] = [];
 const EMPTY_STR = '';
 const PRESERVE_WHITESPACE_TAGS = new Set(['pre', 'textarea']);
 
@@ -66,11 +59,7 @@ export default function renderToStringPretty(
 	opts?: PrettyRenderOptions,
 	_inner?: boolean
 ): string {
-	const previousSkipEffects = (options as any)[SKIP_EFFECTS];
-	(options as any)[SKIP_EFFECTS] = true;
-
-	const parent = h(Fragment, null);
-	(parent as any)[CHILDREN] = [vnode];
+	const pass = beginRenderPass(vnode);
 
 	try {
 		return renderNodePretty(
@@ -80,12 +69,10 @@ export default function renderToStringPretty(
 			_inner,
 			false,
 			undefined,
-			parent
+			pass.parent
 		);
 	} finally {
-		if ((options as any)[COMMIT]) (options as any)[COMMIT](vnode, EMPTY_ARR);
-		(options as any)[SKIP_EFFECTS] = previousSkipEffects;
-		EMPTY_ARR.length = 0;
+		endRenderPass(vnode, pass);
 	}
 }
 
@@ -98,20 +85,14 @@ function renderNodePretty(
 	selectValue: any,
 	parent: any
 ): string {
-	if (vnode == null || typeof vnode === 'boolean') {
-		return '';
+	{
+		const prim = serializePrimitiveVNode(vnode);
+		if (prim !== null) return prim;
 	}
 
-	if ('object' === typeof vnode && vnode?.__handlebars) {
-		if (vnode?.__path) {
-			return `{{${vnode.toString()}}}`;
-		}
-		return vnode.toString();
-	}
-
-	if (typeof vnode !== 'object') {
-		if (typeof vnode === 'function') return '';
-		return encodeEntities(vnode + '');
+	if (typeof vnode === 'object') {
+		const hbs = serializeHandlebarsVNode(vnode);
+		if (hbs !== null) return hbs;
 	}
 
 	let pretty = opts.pretty,
