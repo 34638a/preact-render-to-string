@@ -1,12 +1,10 @@
+import { encodeEntities, UNSAFE_NAME, VOID_ELEMENTS } from './lib/html.js';
 import {
-	encodeEntities,
-	UNSAFE_NAME,
-	VOID_ELEMENTS,
-	NAMESPACE_REPLACE_REGEX,
-	SVG_CAMEL_CASE,
-	HTML_ENUMERATED,
-	HTML_LOWER_CASE
-} from './lib/html.js';
+	processAttrValue,
+	serializeRawAttrs,
+	resolveAttrName,
+	isEnumeratedAttr
+} from './lib/attrs.js';
 import { styleObjToCss } from './lib/css.js';
 import {
 	createComponent,
@@ -21,8 +19,6 @@ import {
 	getChildren,
 	getComponentName
 } from './lib/format.js';
-import { isSignal } from './lib/signals.js';
-import { processHandlebarsAttribute } from './handlebars.js';
 import { options, Fragment, h } from 'preact';
 import {
 	COMMIT,
@@ -77,7 +73,7 @@ export default function renderToStringPretty(
 	(parent as any)[CHILDREN] = [vnode];
 
 	try {
-		return _renderToStringPretty(
+		return renderNodePretty(
 			vnode,
 			context || {},
 			opts || {},
@@ -93,7 +89,7 @@ export default function renderToStringPretty(
 	}
 }
 
-function _renderToStringPretty(
+function renderNodePretty(
 	vnode: any,
 	context: any,
 	opts: PrettyRenderOptions,
@@ -128,7 +124,7 @@ function _renderToStringPretty(
 			if (pretty && i > 0) rendered = rendered + '\n';
 			rendered =
 				rendered +
-				_renderToStringPretty(
+				renderNodePretty(
 					vnode[i],
 					context,
 					opts,
@@ -161,7 +157,7 @@ function _renderToStringPretty(
 		} else if (nodeName === Fragment) {
 			const children: any[] = [];
 			getChildren(children, vnode.props.children);
-			return _renderToStringPretty(
+			return renderNodePretty(
 				children,
 				context,
 				opts,
@@ -231,7 +227,7 @@ function _renderToStringPretty(
 				context = Object.assign({}, context, c.getChildContext());
 			}
 
-			const res = _renderToStringPretty(
+			const res = renderNodePretty(
 				rendered,
 				context,
 				opts,
@@ -265,19 +261,11 @@ function _renderToStringPretty(
 			let name = attrs[i],
 				v = props[name];
 
-			let result = processHandlebarsAttribute(
-				isSignal(v) ? (v as any).value : v
-			);
-			v = result[0];
-			let isHandlebars = result[1];
+			const [attrVal, isHandlebars] = processAttrValue(v);
+			v = attrVal;
 
 			if (name === '$$') {
-				s +=
-					' ' +
-					[v]
-						.flat()
-						.map((e: any) => processHandlebarsAttribute(e)[0])
-						.join(' ');
+				s += serializeRawAttrs(v);
 				continue;
 			}
 
@@ -285,8 +273,6 @@ function _renderToStringPretty(
 				propChildren = v;
 				continue;
 			}
-
-			if (UNSAFE_NAME.test(name)) continue;
 
 			if (
 				!(opts && opts.allAttributes) &&
@@ -297,40 +283,11 @@ function _renderToStringPretty(
 			)
 				continue;
 
-			if (name === 'defaultValue') {
-				name = 'value';
-			} else if (name === 'defaultChecked') {
-				name = 'checked';
-			} else if (name === 'defaultSelected') {
-				name = 'selected';
-			} else if (name === 'className') {
-				if (typeof props.class !== 'undefined') continue;
-				name = 'class';
-			} else if (name === 'acceptCharset') {
-				name = 'accept-charset';
-			} else if (name === 'httpEquiv') {
-				name = 'http-equiv';
-			} else if (NAMESPACE_REPLACE_REGEX.test(name)) {
-				name = name.replace(NAMESPACE_REPLACE_REGEX, '$1:$2').toLowerCase();
-			} else if (
-				(name.at(4) === '-' || HTML_ENUMERATED.has(name)) &&
-				v != null
-			) {
-				v = v + EMPTY_STR;
-			} else if (isSvgMode) {
-				if (SVG_CAMEL_CASE.test(name)) {
-					name =
-						name === 'panose1'
-							? 'panose-1'
-							: name.replace(/([A-Z])/g, '-$1').toLowerCase();
-				}
-			} else if (HTML_LOWER_CASE.test(name)) {
-				name = name.toLowerCase();
-			}
-
-			if (name === 'htmlFor') {
-				if (props.for) continue;
-				name = 'for';
+			{
+				const resolved = resolveAttrName(name, props, isSvgMode);
+				if (resolved === null) continue;
+				name = resolved;
+				if (isEnumeratedAttr(name) && v != null) v = v + EMPTY_STR;
 			}
 
 			if (name === 'style' && v && typeof v === 'object') {
@@ -422,7 +379,7 @@ function _renderToStringPretty(
 							: nodeName === 'foreignObject'
 								? false
 								: isSvgMode,
-					ret = _renderToStringPretty(
+					ret = renderNodePretty(
 						child,
 						context,
 						opts,

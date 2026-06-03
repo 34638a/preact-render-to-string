@@ -1,12 +1,4 @@
-import {
-	encodeEntities,
-	UNSAFE_NAME,
-	NAMESPACE_REPLACE_REGEX,
-	HTML_LOWER_CASE,
-	HTML_ENUMERATED,
-	SVG_CAMEL_CASE,
-	SELF_CLOSING
-} from './html.js';
+import { encodeEntities, SELF_CLOSING, UNSAFE_NAME } from './html.js';
 import { styleObjToCss } from './css.js';
 import {
 	createComponent,
@@ -14,7 +6,12 @@ import {
 	unsetDirty,
 	isDirty
 } from './component.js';
-import { isSignal } from './signals.js';
+import {
+	processAttrValue,
+	serializeRawAttrs,
+	resolveAttrName,
+	isEnumeratedAttr
+} from './attrs.js';
 import { options, h, Fragment } from 'preact';
 import {
 	CHILDREN,
@@ -29,7 +26,6 @@ import {
 	VNODE,
 	CATCH_ERROR
 } from './constants.js';
-import { processHandlebarsAttribute } from '../handlebars.js';
 import type { VNode } from 'preact';
 import type { RendererState } from '../internal.js';
 
@@ -58,6 +54,8 @@ function wrapWithSuspenseMarkers(
 
 // Preact options hooks captured once per synchronous render pass
 let beforeDiff: any, afterDiff: any, renderHook: any, ummountHook: any;
+
+
 
 export function renderToString(
 	vnode: VNode<any>,
@@ -529,9 +527,8 @@ export function _renderToString(
 
 	for (let name in props) {
 		let v = props[name];
-		let result = processHandlebarsAttribute(isSignal(v) ? v.value : v);
-		v = result[0];
-		let isHandlebars = result[1];
+		const [attrVal, isHandlebars] = processAttrValue(v);
+		v = attrVal;
 
 		if (typeof v == 'function' && name !== 'class' && name !== 'className') {
 			continue;
@@ -539,12 +536,7 @@ export function _renderToString(
 
 		switch (name) {
 			case '$$':
-				s +=
-					' ' +
-					[v]
-						.flat()
-						.map((e: any) => processHandlebarsAttribute(e)[0])
-						.join(' ');
+				s += serializeRawAttrs(v);
 				continue;
 
 			case 'children':
@@ -556,22 +548,6 @@ export function _renderToString(
 			case '__self':
 			case '__source':
 				continue;
-
-			case 'htmlFor':
-				if ('for' in props) continue;
-				name = 'for';
-				break;
-			case 'className':
-				if ('class' in props) continue;
-				name = 'class';
-				break;
-
-			case 'defaultChecked':
-				name = 'checked';
-				break;
-			case 'defaultSelected':
-				name = 'selected';
-				break;
 
 			case 'defaultValue':
 			case 'value':
@@ -600,33 +576,12 @@ export function _renderToString(
 					v = styleObjToCss(v);
 				}
 				break;
-			case 'acceptCharset':
-				name = 'accept-charset';
-				break;
-			case 'httpEquiv':
-				name = 'http-equiv';
-				break;
 
 			default: {
-				if (NAMESPACE_REPLACE_REGEX.test(name)) {
-					name = name.replace(NAMESPACE_REPLACE_REGEX, '$1:$2').toLowerCase();
-				} else if (UNSAFE_NAME.test(name)) {
-					continue;
-				} else if (
-					(name[4] === '-' || HTML_ENUMERATED.has(name)) &&
-					v != null
-				) {
-					v = v + EMPTY_STR;
-				} else if (isSvgMode) {
-					if (SVG_CAMEL_CASE.test(name)) {
-						name =
-							name === 'panose1'
-								? 'panose-1'
-								: name.replace(/([A-Z])/g, '-$1').toLowerCase();
-					}
-				} else if (HTML_LOWER_CASE.test(name)) {
-					name = name.toLowerCase();
-				}
+				const resolved = resolveAttrName(name, props, isSvgMode);
+				if (resolved === null) continue;
+				name = resolved;
+				if (isEnumeratedAttr(name) && v != null) v = v + EMPTY_STR;
 			}
 		}
 
