@@ -32,7 +32,7 @@ export const SELF_CLOSING = new Set([
 const ENCODED_ENTITIES = /["&<]/;
 
 export function encodeEntities(str: string): string {
-	if (str.length === 0 || ENCODED_ENTITIES.test(str) === false) return str;
+	if (str.length === 0 || !ENCODED_ENTITIES.test(str)) return str;
 
 	let last = 0,
 		i = 0,
